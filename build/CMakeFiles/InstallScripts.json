@@ -1,0 +1,7 @@
+{
+	"InstallScripts" : 
+	[
+		"/Users/zy.yuan/Develop/browser-runtime-projects/chromium-minimal-runtime/build/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

@@ -1,0 +1,8 @@
+runtime:
+  headless: true
+  data_dir: ./data/profile_001
+  profile: ./config/mac_chrome_profile.json
+  proxy: ""
+  viewport:
+    width: 1440
+    height: 900

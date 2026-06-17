@@ -1,0 +1,3 @@
+/Users/zy.yuan/Develop/browser-runtime-projects/chromium-minimal-runtime/build/CMakeFiles/chromium_minimal_runtime_shell.dir
+/Users/zy.yuan/Develop/browser-runtime-projects/chromium-minimal-runtime/build/CMakeFiles/edit_cache.dir
+/Users/zy.yuan/Develop/browser-runtime-projects/chromium-minimal-runtime/build/CMakeFiles/rebuild_cache.dir

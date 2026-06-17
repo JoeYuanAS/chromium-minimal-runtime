@@ -1,0 +1,9 @@
+profile: ./config/mac_chrome_profile.json
+headless: true
+steps:
+  - goto: "https://example.com"
+  - wait: "body"
+  - extract:
+      title: "title"
+      links: "a"
+  - screenshot: "./output/example.png"

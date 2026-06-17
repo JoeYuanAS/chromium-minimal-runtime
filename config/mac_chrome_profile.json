@@ -1,0 +1,32 @@
+{
+  "name": "mac_chrome_profile",
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36",
+  "platform": "MacIntel",
+  "languages": ["en-US", "en"],
+  "timezone": "Asia/Singapore",
+  "screen": {
+    "width": 1440,
+    "height": 900,
+    "availWidth": 1440,
+    "availHeight": 875,
+    "deviceScaleFactor": 2
+  },
+  "webgl": {
+    "vendor": "Apple Inc.",
+    "renderer": "Apple M2"
+  },
+  "canvas": {
+    "mode": "stable_noise",
+    "seed": "profile_001"
+  },
+  "audio": {
+    "mode": "stable_noise",
+    "seed": "profile_001"
+  },
+  "tls": {
+    "mode": "chrome_like"
+  },
+  "http2": {
+    "mode": "chrome_like"
+  }
+}
