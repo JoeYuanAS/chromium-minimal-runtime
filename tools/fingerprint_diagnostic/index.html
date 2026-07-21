@@ -1,0 +1,1057 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Content Shell Fingerprint Diagnostic</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f7f8fa;
+      --text: #18202a;
+      --muted: #667085;
+      --line: #d9dee7;
+      --panel: #ffffff;
+      --accent: #176b87;
+      --accent-2: #8b5e34;
+      --bad: #b42318;
+      --warn: #b54708;
+      --ok: #027a48;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      border-bottom: 1px solid var(--line);
+      background: rgba(247, 248, 250, 0.94);
+      backdrop-filter: blur(10px);
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 16px 20px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 20px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    button {
+      min-height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--panel);
+      color: var(--text);
+      padding: 7px 11px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    button.primary {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #fff;
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+    }
+
+    main {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 18px 20px 40px;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .metric {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      padding: 12px;
+    }
+
+    .metric .label {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .metric .value {
+      margin-top: 6px;
+      font-size: 18px;
+      font-weight: 650;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 230px minmax(0, 1fr);
+      gap: 14px;
+    }
+
+    nav {
+      position: sticky;
+      top: 86px;
+      align-self: start;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      padding: 8px;
+    }
+
+    nav a {
+      display: block;
+      border-radius: 6px;
+      color: var(--text);
+      text-decoration: none;
+      padding: 8px 10px;
+      font-size: 13px;
+    }
+
+    nav a:hover {
+      background: #eef3f6;
+    }
+
+    section {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      margin-bottom: 14px;
+      overflow: hidden;
+    }
+
+    section h2 {
+      margin: 0;
+      border-bottom: 1px solid var(--line);
+      padding: 12px 14px;
+      font-size: 15px;
+      letter-spacing: 0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      font-size: 12px;
+    }
+
+    th,
+    td {
+      border-bottom: 1px solid #edf0f5;
+      padding: 8px 10px;
+      vertical-align: top;
+      text-align: left;
+    }
+
+    th {
+      width: 220px;
+      color: var(--muted);
+      font-weight: 600;
+      background: #fbfcfd;
+    }
+
+    tr:last-child th,
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    code,
+    pre {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+    }
+
+    pre {
+      max-height: 240px;
+      margin: 0;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .pill {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 2px 7px;
+      font-size: 11px;
+      line-height: 1.5;
+      background: #eef3f6;
+      color: var(--accent);
+    }
+
+    .pill.warn {
+      background: #fff4e5;
+      color: var(--warn);
+    }
+
+    .pill.bad {
+      background: #fee4e2;
+      color: var(--bad);
+    }
+
+    .pill.ok {
+      background: #dcfae6;
+      color: var(--ok);
+    }
+
+    .status-line {
+      margin-bottom: 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @media (max-width: 900px) {
+      .topbar {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .actions {
+        justify-content: flex-start;
+      }
+
+      .summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      nav {
+        position: static;
+      }
+
+      th {
+        width: 150px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="topbar">
+      <div>
+        <h1>Content Shell Fingerprint Diagnostic</h1>
+        <div class="subtitle">本页只采集并展示当前运行时暴露面，不修改浏览器行为。</div>
+      </div>
+      <div class="actions">
+        <button id="rerun" class="primary">重新采集</button>
+        <button id="copy">复制 JSON</button>
+        <button id="download">下载 JSON</button>
+        <button id="save" disabled>保存到本地</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div id="status" class="status-line">准备采集...</div>
+    <div class="summary" id="summary"></div>
+    <div class="layout">
+      <nav id="nav"></nav>
+      <div id="sections"></div>
+    </div>
+  </main>
+
+  <script>
+    const sections = [
+      ["meta", "采集信息"],
+      ["headers", "请求头"],
+      ["automation", "自动化标记"],
+      ["navigator", "Navigator"],
+      ["propertyPresence", "属性存在性"],
+      ["plugins", "Plugins / MimeTypes"],
+      ["chromeObject", "window.chrome"],
+      ["screen", "Screen / Window"],
+      ["storage", "Storage / Runtime"],
+      ["permissions", "Permissions / Media"],
+      ["webgl", "WebGL"],
+      ["canvas", "Canvas"],
+      ["audio", "Audio"],
+      ["builtins", "Native / Descriptor"]
+    ];
+
+    const navigatorPresenceKeys = [
+      "credentials",
+      "appMinorVersion",
+      "bluetooth",
+      "getGamepads",
+      "getStorageUpdates",
+      "hardwareConcurrency",
+      "mediaDevices",
+      "mozAlarms",
+      "mozIsLocallyAvailable",
+      "mozPhoneNumberService",
+      "msManipulationViewsEnabled",
+      "permissions",
+      "registerProtocolHandler",
+      "requestMediaKeySystemAccess",
+      "requestWakeLock",
+      "sendBeacon",
+      "serviceWorker",
+      "storeWebWideTrackingException",
+      "webkitGetGamepads"
+    ];
+
+    const suspiciousGlobals = [
+      "webdriver",
+      "domAutomation",
+      "domAutomationController",
+      "callPhantom",
+      "_phantom",
+      "__nightmare",
+      "__webdriverFuncgeb",
+      "__webdriver__chr",
+      "__webdriver_script_fn",
+      "__webdriver_script_func",
+      "__webdriver_unwrapped",
+      "__driver_evaluate",
+      "__driver_unwrapped",
+      "__fxdriver_evaluate",
+      "__fxdriver_unwrapped",
+      "__selenium_evaluate",
+      "_Selenium_IDE",
+      "cdc_adoQpoasnfa76pfcZLmcfl_Array",
+      "cdc_adoQpoasnfa76pfcZLmcfl_Promise",
+      "cdc_adoQpoasnfa76pfcZLmcfl_Symbol"
+    ];
+
+    let latestReport = null;
+
+    function nowIso() {
+      return new Date().toISOString();
+    }
+
+    function typeName(value) {
+      if (value === null) return "null";
+      if (Array.isArray(value)) return "array";
+      return typeof value;
+    }
+
+    function toPlain(value, depth = 0, seen = new WeakSet()) {
+      if (value === null || value === undefined) return value;
+      if (typeof value === "number" || typeof value === "boolean" ||
+          typeof value === "string") {
+        return value;
+      }
+      if (typeof value === "bigint") return value.toString();
+      if (typeof value === "function") return {
+        type: "function",
+        name: value.name || "",
+        string: Function.prototype.toString.call(value).slice(0, 240)
+      };
+      if (depth > 3) return String(value);
+      if (seen.has(value)) return "[Circular]";
+      seen.add(value);
+      if (Array.isArray(value)) return value.map((item) => toPlain(item, depth + 1, seen));
+      const out = {};
+      for (const key of Object.keys(value)) {
+        try {
+          out[key] = toPlain(value[key], depth + 1, seen);
+        } catch (error) {
+          out[key] = { error: String(error) };
+        }
+      }
+      return out;
+    }
+
+    function stringify(value) {
+      if (value === undefined) return "undefined";
+      try {
+        return JSON.stringify(value, null, 2);
+      } catch (error) {
+        return String(value);
+      }
+    }
+
+    async function hashString(input) {
+      const text = String(input);
+      if (crypto && crypto.subtle && window.TextEncoder) {
+        const bytes = new TextEncoder().encode(text);
+        const digest = await crypto.subtle.digest("SHA-256", bytes);
+        return Array.from(new Uint8Array(digest))
+          .map((byte) => byte.toString(16).padStart(2, "0"))
+          .join("");
+      }
+      let hash = 0x811c9dc5;
+      for (let i = 0; i < text.length; i++) {
+        hash ^= text.charCodeAt(i);
+        hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+      }
+      return ("00000000" + (hash >>> 0).toString(16)).slice(-8);
+    }
+
+    function descriptorSummary(object, property) {
+      let proto = object;
+      while (proto) {
+        const desc = Object.getOwnPropertyDescriptor(proto, property);
+        if (desc) {
+          return {
+            owner: proto.constructor && proto.constructor.name || "Object",
+            enumerable: !!desc.enumerable,
+            configurable: !!desc.configurable,
+            writable: "writable" in desc ? !!desc.writable : undefined,
+            hasGetter: typeof desc.get === "function",
+            hasSetter: typeof desc.set === "function",
+            valueType: "value" in desc ? typeName(desc.value) : undefined,
+            getterString: typeof desc.get === "function"
+              ? Function.prototype.toString.call(desc.get).slice(0, 160)
+              : undefined
+          };
+        }
+        proto = Object.getPrototypeOf(proto);
+      }
+      return null;
+    }
+
+    function safeRead(label, fn) {
+      try {
+        return fn();
+      } catch (error) {
+        return { error: label + ": " + String(error) };
+      }
+    }
+
+    async function collectHeaders() {
+      if (location.protocol !== "http:" && location.protocol !== "https:") {
+        return { note: "file:// 模式无法读取本地 server 捕获的请求头" };
+      }
+      try {
+        const response = await fetch("/__request_headers", { cache: "no-store" });
+        return await response.json();
+      } catch (error) {
+        return { error: String(error) };
+      }
+    }
+
+    async function collectUserAgentData() {
+      const uaData = navigator.userAgentData;
+      if (!uaData) return null;
+      const out = {
+        brands: toPlain(uaData.brands),
+        mobile: uaData.mobile,
+        platform: uaData.platform
+      };
+      if (typeof uaData.getHighEntropyValues === "function") {
+        try {
+          out.highEntropy = await uaData.getHighEntropyValues([
+            "architecture",
+            "bitness",
+            "brands",
+            "fullVersionList",
+            "mobile",
+            "model",
+            "platform",
+            "platformVersion",
+            "uaFullVersion",
+            "wow64"
+          ]);
+        } catch (error) {
+          out.highEntropyError = String(error);
+        }
+      }
+      return out;
+    }
+
+    async function collectNavigator() {
+      const fields = [
+        "appCodeName",
+        "appName",
+        "appVersion",
+        "buildID",
+        "cookieEnabled",
+        "deviceMemory",
+        "doNotTrack",
+        "hardwareConcurrency",
+        "language",
+        "languages",
+        "maxTouchPoints",
+        "onLine",
+        "pdfViewerEnabled",
+        "platform",
+        "product",
+        "productSub",
+        "userAgent",
+        "vendor",
+        "vendorSub",
+        "webdriver"
+      ];
+      const values = {};
+      for (const field of fields) {
+        values[field] = safeRead(field, () => toPlain(navigator[field]));
+      }
+      values.userAgentData = await collectUserAgentData();
+      values.prototypeKeys = safeRead("Navigator.prototype keys", () =>
+        Object.getOwnPropertyNames(Navigator.prototype).sort());
+      values.descriptors = {};
+      for (const field of fields.concat(["plugins", "mimeTypes"])) {
+        values.descriptors[field] = descriptorSummary(navigator, field);
+      }
+      return values;
+    }
+
+    function collectPropertyPresence() {
+      const values = {};
+      for (const key of navigatorPresenceKeys) {
+        values[key] = {
+          inNavigator: key in navigator,
+          typeofValue: typeof navigator[key],
+          descriptor: descriptorSummary(navigator, key)
+        };
+      }
+      values.math = {};
+      for (const key of ["imul", "hypot", "trunc", "sign"]) {
+        values.math[key] = typeof Math[key];
+      }
+      values.number = {};
+      for (const key of ["parseInt", "parseFloat", "isNaN", "isInteger"]) {
+        values.number[key] = typeof Number[key];
+      }
+      return values;
+    }
+
+    function collectAutomation() {
+      const globals = {};
+      for (const key of suspiciousGlobals) {
+        globals[key] = {
+          inWindow: key in window,
+          typeofValue: typeof window[key]
+        };
+      }
+      return {
+        documentElementWebdriver: document.documentElement.getAttribute("webdriver"),
+        navigatorWebdriver: safeRead("navigator.webdriver", () => navigator.webdriver),
+        globals
+      };
+    }
+
+    function collectPlugins() {
+      const pluginArray = [];
+      const mimeArray = [];
+      try {
+        for (let i = 0; i < navigator.plugins.length; i++) {
+          const plugin = navigator.plugins[i];
+          const mimeTypes = [];
+          for (let j = 0; j < plugin.length; j++) {
+            const mime = plugin[j];
+            mimeTypes.push({
+              type: mime.type,
+              suffixes: mime.suffixes,
+              description: mime.description,
+              enabledPluginName: mime.enabledPlugin && mime.enabledPlugin.name
+            });
+          }
+          pluginArray.push({
+            index: i,
+            name: plugin.name,
+            filename: plugin.filename,
+            description: plugin.description,
+            length: plugin.length,
+            mimeTypes
+          });
+        }
+      } catch (error) {
+        pluginArray.push({ error: String(error) });
+      }
+      try {
+        for (let i = 0; i < navigator.mimeTypes.length; i++) {
+          const mime = navigator.mimeTypes[i];
+          mimeArray.push({
+            index: i,
+            type: mime.type,
+            suffixes: mime.suffixes,
+            description: mime.description,
+            enabledPluginName: mime.enabledPlugin && mime.enabledPlugin.name
+          });
+        }
+      } catch (error) {
+        mimeArray.push({ error: String(error) });
+      }
+      return {
+        pluginsLength: safeRead("plugins.length", () => navigator.plugins.length),
+        mimeTypesLength: safeRead("mimeTypes.length", () => navigator.mimeTypes.length),
+        pluginsClass: safeRead("plugins class", () => Object.prototype.toString.call(navigator.plugins)),
+        mimeTypesClass: safeRead("mimeTypes class", () => Object.prototype.toString.call(navigator.mimeTypes)),
+        pluginsOwnKeys: safeRead("plugins own keys", () => Object.keys(navigator.plugins)),
+        mimeTypesOwnKeys: safeRead("mimeTypes own keys", () => Object.keys(navigator.mimeTypes)),
+        plugins: pluginArray,
+        mimeTypes: mimeArray
+      };
+    }
+
+    function collectChromeObject() {
+      const chrome = window.chrome;
+      return {
+        exists: typeof chrome !== "undefined",
+        type: typeof chrome,
+        className: chrome ? Object.prototype.toString.call(chrome) : null,
+        ownKeys: chrome ? Object.keys(chrome) : [],
+        ownPropertyNames: chrome ? Object.getOwnPropertyNames(chrome) : [],
+        runtimeType: chrome && chrome.runtime ? typeof chrome.runtime : typeof (chrome && chrome.runtime),
+        runtimeKeys: chrome && chrome.runtime ? Object.keys(chrome.runtime) : [],
+        connectType: chrome && chrome.runtime ? typeof chrome.runtime.connect : undefined,
+        sendMessageType: chrome && chrome.runtime ? typeof chrome.runtime.sendMessage : undefined,
+        webstoreType: chrome ? typeof chrome.webstore : undefined
+      };
+    }
+
+    function collectScreen() {
+      return {
+        screen: {
+          width: screen.width,
+          height: screen.height,
+          availWidth: screen.availWidth,
+          availHeight: screen.availHeight,
+          colorDepth: screen.colorDepth,
+          pixelDepth: screen.pixelDepth,
+          orientation: screen.orientation ? {
+            type: screen.orientation.type,
+            angle: screen.orientation.angle
+          } : null
+        },
+        window: {
+          innerWidth,
+          innerHeight,
+          outerWidth,
+          outerHeight,
+          screenX,
+          screenY,
+          devicePixelRatio,
+          pageXOffset,
+          pageYOffset
+        },
+        visualViewport: window.visualViewport ? {
+          width: visualViewport.width,
+          height: visualViewport.height,
+          scale: visualViewport.scale,
+          offsetLeft: visualViewport.offsetLeft,
+          offsetTop: visualViewport.offsetTop,
+          pageLeft: visualViewport.pageLeft,
+          pageTop: visualViewport.pageTop
+        } : null
+      };
+    }
+
+    function collectStorage() {
+      const storage = {};
+      storage.localStorage = safeRead("localStorage", () => {
+        localStorage.setItem("__fp_diag", "1");
+        const value = localStorage.getItem("__fp_diag");
+        localStorage.removeItem("__fp_diag");
+        return value === "1";
+      });
+      storage.sessionStorage = safeRead("sessionStorage", () => {
+        sessionStorage.setItem("__fp_diag", "1");
+        const value = sessionStorage.getItem("__fp_diag");
+        sessionStorage.removeItem("__fp_diag");
+        return value === "1";
+      });
+      storage.indexedDB = typeof indexedDB;
+      storage.caches = typeof caches;
+      storage.cookie = safeRead("document.cookie", () => document.cookie);
+      storage.crossOriginIsolated = window.crossOriginIsolated;
+      storage.isSecureContext = window.isSecureContext;
+      storage.crypto = {
+        crypto: typeof crypto,
+        subtle: crypto ? typeof crypto.subtle : "undefined",
+        randomUUID: crypto ? typeof crypto.randomUUID : "undefined"
+      };
+      return storage;
+    }
+
+    async function collectPermissionsAndMedia() {
+      const names = ["notifications", "geolocation", "camera", "microphone", "midi", "clipboard-read"];
+      const permissions = {};
+      if (navigator.permissions && navigator.permissions.query) {
+        for (const name of names) {
+          try {
+            const status = await navigator.permissions.query({ name });
+            permissions[name] = status.state;
+          } catch (error) {
+            permissions[name] = { error: String(error) };
+          }
+        }
+      } else {
+        permissions.note = "navigator.permissions unavailable";
+      }
+
+      const media = {
+        mediaDevicesType: typeof navigator.mediaDevices,
+        enumerateDevicesType: navigator.mediaDevices ? typeof navigator.mediaDevices.enumerateDevices : "undefined",
+        getUserMediaType: navigator.mediaDevices ? typeof navigator.mediaDevices.getUserMedia : "undefined",
+        speechSynthesisType: typeof speechSynthesis,
+        rtcPeerConnectionType: typeof RTCPeerConnection,
+        webkitRtcPeerConnectionType: typeof webkitRTCPeerConnection,
+        mozRtcPeerConnectionType: typeof window.mozRTCPeerConnection
+      };
+
+      if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+        try {
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          media.devices = devices.map((device) => ({
+            kind: device.kind,
+            label: device.label,
+            deviceIdLength: device.deviceId ? device.deviceId.length : 0,
+            groupIdLength: device.groupId ? device.groupId.length : 0
+          }));
+        } catch (error) {
+          media.devicesError = String(error);
+        }
+      }
+
+      if (typeof speechSynthesis !== "undefined" && speechSynthesis.getVoices) {
+        try {
+          media.voices = speechSynthesis.getVoices().map((voice) => ({
+            name: voice.name,
+            lang: voice.lang,
+            localService: voice.localService,
+            default: voice.default
+          }));
+        } catch (error) {
+          media.voicesError = String(error);
+        }
+      }
+
+      return { permissions, media };
+    }
+
+    function collectWebGLContext(kind) {
+      const canvas = document.createElement("canvas");
+      const gl = canvas.getContext(kind);
+      if (!gl) return null;
+      const debugInfo = gl.getExtension("WEBGL_debug_renderer_info");
+      const value = (param) => {
+        try {
+          const raw = gl.getParameter(param);
+          return ArrayBuffer.isView(raw) ? Array.from(raw) : raw;
+        } catch (error) {
+          return { error: String(error) };
+        }
+      };
+      return {
+        context: kind,
+        vendor: value(gl.VENDOR),
+        renderer: value(gl.RENDERER),
+        version: value(gl.VERSION),
+        shadingLanguageVersion: value(gl.SHADING_LANGUAGE_VERSION),
+        unmaskedVendor: debugInfo ? value(debugInfo.UNMASKED_VENDOR_WEBGL) : null,
+        unmaskedRenderer: debugInfo ? value(debugInfo.UNMASKED_RENDERER_WEBGL) : null,
+        maxTextureSize: value(gl.MAX_TEXTURE_SIZE),
+        maxCubeMapTextureSize: value(gl.MAX_CUBE_MAP_TEXTURE_SIZE),
+        maxRenderbufferSize: value(gl.MAX_RENDERBUFFER_SIZE),
+        maxViewportDims: value(gl.MAX_VIEWPORT_DIMS),
+        aliasedLineWidthRange: value(gl.ALIASED_LINE_WIDTH_RANGE),
+        aliasedPointSizeRange: value(gl.ALIASED_POINT_SIZE_RANGE),
+        extensions: gl.getSupportedExtensions() || []
+      };
+    }
+
+    function collectWebGL() {
+      return {
+        webgl: collectWebGLContext("webgl"),
+        experimentalWebgl: collectWebGLContext("experimental-webgl"),
+        webgl2: collectWebGLContext("webgl2")
+      };
+    }
+
+    async function collectCanvas() {
+      const canvas = document.createElement("canvas");
+      canvas.width = 360;
+      canvas.height = 120;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return { error: "2d context unavailable" };
+      ctx.fillStyle = "#f6f8fb";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+      gradient.addColorStop(0, "#176b87");
+      gradient.addColorStop(1, "#8b5e34");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(8, 8, 344, 42);
+      ctx.font = "18px Arial";
+      ctx.fillStyle = "#18202a";
+      ctx.fillText("Content Shell 指纹诊断 12345", 14, 82);
+      ctx.font = "15px Times New Roman";
+      ctx.strokeStyle = "rgba(60,80,120,0.65)";
+      ctx.strokeText("Canvas sample @ " + navigator.platform, 14, 105);
+      const dataUrl = safeRead("canvas.toDataURL", () => canvas.toDataURL("image/png"));
+      const pixels = safeRead("canvas.getImageData", () => {
+        const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+        return Array.from(data).filter((_, index) => index % 97 === 0).join(",");
+      });
+      return {
+        dataUrlLength: typeof dataUrl === "string" ? dataUrl.length : dataUrl,
+        dataUrlHash: typeof dataUrl === "string" ? await hashString(dataUrl) : null,
+        samplePixelHash: typeof pixels === "string" ? await hashString(pixels) : pixels
+      };
+    }
+
+    async function collectAudio() {
+      const AudioContextClass = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+      if (!AudioContextClass) return { error: "OfflineAudioContext unavailable" };
+      try {
+        const context = new AudioContextClass(1, 44100, 44100);
+        const oscillator = context.createOscillator();
+        const compressor = context.createDynamicsCompressor();
+        oscillator.type = "triangle";
+        oscillator.frequency.value = 10000;
+        compressor.threshold.value = -50;
+        compressor.knee.value = 40;
+        compressor.ratio.value = 12;
+        compressor.attack.value = 0;
+        compressor.release.value = 0.25;
+        oscillator.connect(compressor);
+        compressor.connect(context.destination);
+        oscillator.start(0);
+        const buffer = await context.startRendering();
+        const data = buffer.getChannelData(0);
+        let sum = 0;
+        const samples = [];
+        for (let i = 4500; i < 5000; i++) {
+          sum += Math.abs(data[i]);
+          if (i % 11 === 0) samples.push(data[i].toFixed(8));
+        }
+        return {
+          sampleRate: buffer.sampleRate,
+          length: buffer.length,
+          channelCount: buffer.numberOfChannels,
+          sampleSum: Number(sum.toFixed(8)),
+          sampleHash: await hashString(samples.join(","))
+        };
+      } catch (error) {
+        return { error: String(error) };
+      }
+    }
+
+    function collectBuiltins() {
+      const samples = {
+        objectKeys: Object.keys,
+        hasOwnProperty: Object.prototype.hasOwnProperty,
+        getOwnPropertyDescriptor: Object.getOwnPropertyDescriptor,
+        permissionsQuery: navigator.permissions && navigator.permissions.query,
+        sendBeacon: navigator.sendBeacon,
+        pluginsItem: navigator.plugins && navigator.plugins.item,
+        canvasToDataURL: HTMLCanvasElement.prototype.toDataURL,
+        webglGetParameter: typeof WebGLRenderingContext !== "undefined"
+          ? WebGLRenderingContext.prototype.getParameter
+          : undefined
+      };
+      const values = {};
+      for (const [key, fn] of Object.entries(samples)) {
+        values[key] = typeof fn === "function"
+          ? Function.prototype.toString.call(fn).slice(0, 220)
+          : typeof fn;
+      }
+      values.windowOwnPropertyCount = Object.getOwnPropertyNames(window).length;
+      values.navigatorOwnKeys = Object.keys(navigator);
+      values.navigatorOwnPropertyNames = Object.getOwnPropertyNames(navigator);
+      return values;
+    }
+
+    async function collectReport() {
+      const startedAt = performance.now();
+      const report = {
+        schemaVersion: 1,
+        meta: {
+          collectedAt: nowIso(),
+          locationHref: location.href,
+          documentURL: document.URL,
+          protocol: location.protocol,
+          runtimeMsAtStart: Number(startedAt.toFixed(3)),
+          timezoneOffset: new Date().getTimezoneOffset(),
+          intl: safeRead("Intl.DateTimeFormat", () => Intl.DateTimeFormat().resolvedOptions()),
+          dateString: new Date().toString()
+        },
+        headers: await collectHeaders(),
+        automation: collectAutomation(),
+        navigator: await collectNavigator(),
+        propertyPresence: collectPropertyPresence(),
+        plugins: collectPlugins(),
+        chromeObject: collectChromeObject(),
+        screen: collectScreen(),
+        storage: collectStorage(),
+        permissions: null,
+        webgl: collectWebGL(),
+        canvas: await collectCanvas(),
+        audio: await collectAudio(),
+        builtins: collectBuiltins()
+      };
+      report.permissions = await collectPermissionsAndMedia();
+      report.meta.runtimeMsAtEnd = Number(performance.now().toFixed(3));
+      report.meta.collectionDurationMs =
+        Number((report.meta.runtimeMsAtEnd - startedAt).toFixed(3));
+      return report;
+    }
+
+    function renderValue(value) {
+      const pre = document.createElement("pre");
+      pre.textContent = stringify(value);
+      return pre;
+    }
+
+    function renderReport(report) {
+      latestReport = report;
+      const nav = document.getElementById("nav");
+      const root = document.getElementById("sections");
+      nav.textContent = "";
+      root.textContent = "";
+
+      for (const [key, title] of sections) {
+        const link = document.createElement("a");
+        link.href = "#" + key;
+        link.textContent = title;
+        nav.appendChild(link);
+
+        const section = document.createElement("section");
+        section.id = key;
+        const h2 = document.createElement("h2");
+        h2.textContent = title;
+        section.appendChild(h2);
+
+        const table = document.createElement("table");
+        const data = report[key] || {};
+        for (const [itemKey, value] of Object.entries(data)) {
+          const tr = document.createElement("tr");
+          const th = document.createElement("th");
+          const td = document.createElement("td");
+          th.textContent = itemKey;
+          td.appendChild(renderValue(value));
+          tr.appendChild(th);
+          tr.appendChild(td);
+          table.appendChild(tr);
+        }
+        section.appendChild(table);
+        root.appendChild(section);
+      }
+
+      const automationHits = Object.values(report.automation.globals)
+        .filter((entry) => entry.inWindow).length;
+      const pluginLength = report.plugins.pluginsLength;
+      const webglRenderer =
+        report.webgl.webgl && (report.webgl.webgl.unmaskedRenderer || report.webgl.webgl.renderer);
+      const summaryItems = [
+        ["采集耗时", report.meta.collectionDurationMs + " ms", "ok"],
+        ["自动化全局命中", automationHits, automationHits ? "bad" : "ok"],
+        ["plugins.length", pluginLength, Number(pluginLength) === 0 ? "warn" : "ok"],
+        ["WebGL renderer", webglRenderer || "unavailable", webglRenderer ? "ok" : "warn"]
+      ];
+      const summary = document.getElementById("summary");
+      summary.textContent = "";
+      for (const [label, value, tone] of summaryItems) {
+        const item = document.createElement("div");
+        item.className = "metric";
+        item.innerHTML =
+          "<div class=\"label\"></div><div class=\"value\"></div><span class=\"pill " +
+          tone + "\">" + tone + "</span>";
+        item.querySelector(".label").textContent = label;
+        item.querySelector(".value").textContent = String(value);
+        summary.appendChild(item);
+      }
+
+      const saveButton = document.getElementById("save");
+      saveButton.disabled = location.protocol !== "http:" && location.protocol !== "https:";
+      document.getElementById("status").textContent =
+        "采集完成：" + report.meta.collectedAt;
+    }
+
+    async function rerun() {
+      document.getElementById("status").textContent = "正在采集...";
+      for (const id of ["rerun", "copy", "download", "save"]) {
+        document.getElementById(id).disabled = true;
+      }
+      try {
+        const report = await collectReport();
+        renderReport(report);
+      } catch (error) {
+        document.getElementById("status").textContent = "采集失败：" + String(error);
+        console.error(error);
+      } finally {
+        document.getElementById("rerun").disabled = false;
+        document.getElementById("copy").disabled = false;
+        document.getElementById("download").disabled = false;
+      }
+    }
+
+    async function copyJson() {
+      if (!latestReport) return;
+      await navigator.clipboard.writeText(JSON.stringify(latestReport, null, 2));
+      document.getElementById("status").textContent = "JSON 已复制到剪贴板";
+    }
+
+    function downloadJson() {
+      if (!latestReport) return;
+      const blob = new Blob([JSON.stringify(latestReport, null, 2)], {
+        type: "application/json"
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "fingerprint-report-" + latestReport.meta.collectedAt.replace(/[:.]/g, "-") + ".json";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    async function saveReport() {
+      if (!latestReport) return;
+      try {
+        const response = await fetch("/__report", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(latestReport, null, 2)
+        });
+        const result = await response.json();
+        document.getElementById("status").textContent =
+          result.ok ? "报告已保存：" + result.path : "保存失败：" + stringify(result);
+      } catch (error) {
+        document.getElementById("status").textContent = "保存失败：" + String(error);
+      }
+    }
+
+    document.getElementById("rerun").addEventListener("click", rerun);
+    document.getElementById("copy").addEventListener("click", copyJson);
+    document.getElementById("download").addEventListener("click", downloadJson);
+    document.getElementById("save").addEventListener("click", saveReport);
+    rerun();
+  </script>
+</body>
+</html>

@@ -103,3 +103,50 @@ scripts/fetch_chromium_sparse_source.sh
 - `sparse-checkout`：默认只展开 `content/shell`、`content/public`、`build`、`tools` 等起步路径。
 
 注意：这个 sparse checkout 适合先读和改 `content_shell`。如果要从源码完整编译 `content_shell`，仍需要继续展开 DEPS 依赖和更多源码路径。
+
+## 编译和使用
+### 编译
+```
+export PATH="/Users/zy.yuan/Develop/browser-runtime-projects/chromium-workspace/depot_tools/python-bin:/Users/zy.yuan/Develop/browser-runtime-projects/chromium-workspace/depot_tools:$PATH"
+```
+
+```
+cd ~/Develop/browser-runtime-projects/chromium-workspace/src
+buildtools/mac/gn gen out/ContentShell     # args.gn 已存在（arm64, content_shell_minimal_root=true, enable_pdf=false 等），增量改动直接复用
+autoninja -C out/ContentShell content_shell
+```
+
+### 运行(带指纹 mock)
+```
+"out/ContentShell/Content Shell.app/Contents/MacOS/Content Shell" \
+  --user-data-dir="$(mktemp -d)" --no-first-run --disable-breakpad \
+  --fingerprint-profile=/Users/zy.yuan/Develop/browser-runtime-projects/chromium-minimal-runtime/config/mac_chrome_profile.json \
+  http://your-test-url/
+```
+
+### 用诊断页自测
+```
+cd /Users/zy.yuan/Develop/browser-runtime-projects/chromium-minimal-runtime
+scripts/run_fingerprint_diagnostic.sh
+```
+
+
+### 抓取
+```
+"out/ContentShell/Content Shell.app/Contents/MacOS/Content Shell" \
+  --user-data-dir="$(mktemp -d)" --no-first-run --disable-breakpad \
+  --fingerprint-profile=/Users/zy.yuan/Develop/browser-runtime-projects/chromium-minimal-runtime/config/mac_chrome_profile.json \
+  --log-net-log=/tmp/netlog2.json \
+  "https://www.royalmail.com/track-your-item#/tracking-results/JV768816105GB"
+```
+
+```
+"out/ContentShell/Content Shell.app/Contents/MacOS/Content Shell" \
+  --user-data-dir="$(mktemp -d)" \
+  --no-first-run --disable-breakpad \
+  --enable-logging=stderr \
+  --log-file=/tmp/chrome_full.log \
+  --fingerprint-profile=/Users/zy.yuan/Develop/browser-runtime-projects/chromium-minimal-runtime/config/mac_chrome_profile.json \
+  --fp-api-trace \
+  "https://www.royalmail.com/track-your-item#/tracking-results/JV768816105GB"
+```

@@ -43,7 +43,8 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  setenv("CHROME_LOG_FILE", "/tmp/content_shell.log", 0);
+  setenv("CHROME_LOG_FILE", "/tmp/content_shell.log", 1);
+  chdir("/tmp");
 
   int add_log_arg = !has_log_file_arg(argc, argv);
   char** child_argv =

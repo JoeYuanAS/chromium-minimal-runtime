@@ -1,8 +1,33 @@
+# 本文件当前不会被 content_shell 解析——代码里没有 --runtime-config 加载逻辑，
+# 全仓库（含 scripts/*.sh）也没有任何地方读取过 runtime.yaml。下面的 runtime.*
+# 字段目前只是人读的运行参数说明，不生效。真正的启动方式见
+# docs/e0488508e6-v2/status-006-config-driven-fingerprint-mock.md：
+#   Content Shell --fingerprint-profile=config/mac_chrome_profile.json <url>
+# TODO：实现 runtime.yaml 加载器（或者干脆去掉这层，只保留 profile json +
+# 启动脚本），见 docs/e0488508e6-v2/TODO-akamai-gaps.md 「运行时配置」一节。
 runtime:
   headless: true
   data_dir: ./data/profile_001
-  profile: ./config/mac_chrome_profile.json
   proxy: ""
   viewport:
     width: 1440
     height: 900
+
+# 指纹 mock 唯一真实生效的入口：--fingerprint-profile=<json>，由
+# ShellFingerprintProfile 在 browser 进程懒加载（文件缺失/解析失败会静默回退
+# content_shell 默认值，不崩溃）。截至 status-014，以下检测面已 native 接入
+# （零 JS 注入、反射安全）：
+#   UA / UA-CH(Sec-CH-UA) / Accept-Language / navigator.languages / webdriver /
+#   platform / productSub / vendor / hardwareConcurrency / deviceMemory /
+#   maxTouchPoints / timezone / plugins / mimeTypes / pdfViewerEnabled /
+#   window.chrome(app/csi/loadTimes/runtime) / screen 几何 / window 实际尺寸 /
+#   permissions.query 默认值 / Notification.permission /
+#   WebGL unmasked vendor+renderer / canvas & audio 稳定噪声
+# 尚未实现、清单见 docs/e0488508e6-v2/TODO-akamai-gaps.md：
+#   window.chrome.webstore、adp 设备能力位（vibrate/battery/devicemotion）、
+#   行为事件轨迹合成、speechSynthesis 语音列表、时间锚定/反重放、
+#   devicePixelRatio 跨宿主一致性、network.tls/http2 层指纹、
+#   多 profile 池随机选择（selection/profile_pool/seed）
+fingerprint:
+  enabled: true
+  profile: ./config/mac_chrome_profile.json  # 唯一生效字段，直接对应 --fingerprint-profile
